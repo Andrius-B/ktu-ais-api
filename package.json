@@ -7,7 +7,7 @@
     "test": "mocha"
   },
   "author": "we-love-dot-not",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "body-parser": "^1.17.1",
     "cheerio": "^0.22.0",
