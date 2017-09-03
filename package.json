@@ -1,0 +1,22 @@
+{
+  "name": "ktu-ais-api",
+  "version": "1.0.0",
+  "description": "Open API to get grades from ktu ais",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "author": "we-love-dot-not",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.17.1",
+    "cheerio": "^0.22.0",
+    "cheerio-tableparser": "^1.0.1",
+    "express": "^4.15.2",
+    "iconv-lite": "^0.4.16",
+    "request": "^2.81.0"
+  },
+  "devDependencies": {
+    "mocha": "^3.2.0"
+  }
+}
