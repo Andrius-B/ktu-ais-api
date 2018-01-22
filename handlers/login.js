@@ -8,23 +8,23 @@ const getStudcookie   = require('./getStudcookie')
 function handler(username, password) {
   username = username.replace("\'", "'\\\''")
   password = password.replace("\'", "'\\\''")
-  return getStudcookie(username, password).then(cookie => {
-    return afterLogin(cookie)
+  return getStudcookie(username, password).then(authCookie => {
+    return afterLogin(authCookie)
   })
-  
+
 }
 
-function afterLogin(cookie) {
+function afterLogin(authCookie) {
   return new Promise((res, rej) => {
     let json = {
-      cookie: cookie,
+      cookie: authCookie,
       student_name: "",
       student_id: "",
       student_semesters: []
     }
     let options = {
       url: 'https://uais.cr.ktu.lt/ktuis/vs.ind_planas',
-      headers: { Cookie: `STUDCOOKIE=${cookie};` },
+      headers: { Cookie: authCookie },
       encoding: null
     }
     request(options, (error, response, body) => {
@@ -34,7 +34,7 @@ function afterLogin(cookie) {
           let nameString = $("#ais_lang_link_lt").parent().text().split('\n')[0]
           json.student_id = nameString.split(' ')[0].trim()
           let nameStringSplit = nameString.split(' ')
-          for (let i = 1; i < nameStringSplit.length; i++) 
+          for (let i = 1; i < nameStringSplit.length; i++)
             json.student_name += nameStringSplit[i] + ' '
           json.student_name = json.student_name.trim()
           $(".ind-lst.unstyled > li > a").each(function(i, element) {

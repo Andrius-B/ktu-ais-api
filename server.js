@@ -45,6 +45,7 @@ app.post('/api/get_grades', (req, res) => {
       res.sendStatus(data)
     }
     else {
+      console.log(data)
       getGrades.getGradesJson(data, cookie).then((data) => {
         res.send(data)
       })

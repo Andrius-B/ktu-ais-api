@@ -5,7 +5,11 @@ const cheerioTableparser      = require('cheerio-tableparser')
 const request                 = require('request')
 const iconv                   = require('iconv-lite')
 
-// Nihuja nesuprantu kas cia daros
+/*
+  CountdownLatch used to send out requests in a forEach loop
+  and then await all of them before returning
+*/
+//Creates a CountdownLatch object to keep track of
 var CountdownLatch = function (limit){
   this.limit = limit;
   this.count = 0;
@@ -13,24 +17,25 @@ var CountdownLatch = function (limit){
 }
 
 CountdownLatch.prototype.async = function (fn){
-  var _this = this;
+  var _this = this; // pass the CountdownLatch refrence to the child function
   fn(function (){
-    _this.count = _this.count + 1;
+    _this.count = _this.count + 1; // the child funtion callback increments the internal counter
     if(_this.limit <= _this.count){
-      return _this.waitBlock();
+      return _this.waitBlock(); // if enough of the child functions incremented the internal counter,
+                                // execute the waitBlock, which by default is do-nothing, but may be replaced
     }
   })
 }
 
 CountdownLatch.prototype.await = function(callback){
-  this.waitBlock = callback;
+  this.waitBlock = callback; // replaces the internal callback for when all function finish execution
+                             // i.e. the internal counter reaches the limit
 }
 
-function handler(plano_metai, p_stud_id, cookie) {
-  let STUDCOOKIE = `STUDCOOKIE=${cookie};`
+function handler(plano_metai, p_stud_id, authCookie) {
   let url = `https://uais.cr.ktu.lt/ktuis/STUD_SS2.planas_busenos?plano_metai=${plano_metai}&p_stud_id=${p_stud_id}`
   return new Promise((res, rej) => {
-    request(url, {headers: {Cookie: STUDCOOKIE}, encoding: null}, (error, response, body) => {
+    request(url, {headers: {Cookie: authCookie}, encoding: null}, (error, response, body) => {
       if (!error) {
         var $ = cheerio.load(iconv.decode(body, 'windows-1257'))
         var ary = []
@@ -38,7 +43,7 @@ function handler(plano_metai, p_stud_id, cookie) {
           // each is cheerio's function so => doesn't work
           $(".table.table-hover > tbody > tr").each(function(i, element) {
             let a = $(this)
-            let json = { 
+            let json = {
                           semester : "",
                           semester_number: "",
                           module_code: "",
@@ -47,7 +52,7 @@ function handler(plano_metai, p_stud_id, cookie) {
                           language: "",
                           misc: "",
                           p1: "",
-                          p2: "" 
+                          p2: ""
                         }
             json.semester = a.parent().parent().children().first().children().first().text().split("(")[0].trim()
             json.semester_number = a.parent().parent().children().first().children().first().text().split("(")[1].split(')')[0].trim()
@@ -57,11 +62,11 @@ function handler(plano_metai, p_stud_id, cookie) {
             json.language = a.children().eq(4).text()
             json.misc = a.children().eq(5).text()
             let infivert_regex = /[\(|\,|\)|\']/g // infivert is a function that returns grades, need to get p1 and p2 to call it
-            // TODO: rename this variable someday
-            let fuck = a.children().eq(5).children().first().attr('onclick')
-            if (fuck != undefined) {
-              let infivert = fuck.toString().split(infivert_regex)
-              json.p1 = infivert[1]
+
+            let duck = a.children().eq(5).children().first().attr('onclick')
+            if (duck != undefined) {
+              let infivert = duck.toString().split(infivert_regex)
+              json.p1 = infivert[1] // p1 is the students semester_id
               json.p2 = infivert[3]
             }
             ary.push(json)
@@ -75,26 +80,32 @@ function handler(plano_metai, p_stud_id, cookie) {
   })
 }
 
-function getGradesJson(dataString, cookie) {
+function getGradesJson(dataString, authCookie) {
   let data = JSON.parse(dataString)
   let url = 'https://uais.cr.ktu.lt/ktuis/STUD_SS2.infivert'
-  let STUDCOOKIE = `STUDCOOKIE=${cookie};`
   var barrier = new CountdownLatch(data.length);
   return new Promise((res, rej) =>{
     let resp = []
+
+    barrier.await(function(){
+      console.log('done all');
+      res(resp)
+    })
+
     barrier.async(function (done){
         data.forEach((element, i) => {
+        if(!element.p2 || !element.p1){ done() }
         let body = `p2=${element.p2}&p1=${element.p1}`
-        let options = { 
+        let options = {
                         method: 'POST',
                         url: url,
                         headers:
-                          { cookie: STUDCOOKIE },
+                          { cookie: authCookie },
                         encoding: null,
-                        form: { 
+                        form: {
                           p1: element.p1,
-                          p2: element.p2 
-                        } 
+                          p2: element.p2
+                        }
                       }
         request(options, (error, response, body) => {
           if(!error) {
@@ -133,7 +144,6 @@ function getGradesJson(dataString, cookie) {
                 resp.push(grade)
               }
             }
-            console.log("cnt "+barrier.count)
             done()
           }
           else res(500)
@@ -141,10 +151,6 @@ function getGradesJson(dataString, cookie) {
       })
     })
 
-    barrier.await(function(){
-      console.log('done all');
-      res(resp)
-    })
   })
 }
 

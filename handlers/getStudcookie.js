@@ -2,6 +2,7 @@
 
 const cheerio         = require('cheerio')
 const bodyParser      = require('body-parser')
+const cookie          = require('cookie')
 let request           = require('request')
 
 function getSTUDCOOKIE(username, password) {
@@ -17,12 +18,12 @@ function getSTUDCOOKIE(username, password) {
     request(opts, (err, response, body) => {
       let $ = cheerio.load(body)
       let AuthState = $('input[name="AuthState"]').attr('value')
-      let cookie = response.request.headers.cookie
+      let cookies = response.request.headers.cookie
       let options = {
         method: 'POST',
         url: 'https://login.ktu.lt/simplesaml/module.php/core/loginuserpass.php',
         headers: {
-          cookie: cookie
+          cookie: cookies
         },
         form: {
           username: username,
@@ -34,24 +35,21 @@ function getSTUDCOOKIE(username, password) {
       request(options, (err, response, body) => {
         let $ = cheerio.load(body)
         let url = $('a#redirlink').attr('href')
-        let cookie = response.request.headers.cookie
+        let cookies = response.request.headers.cookie
         let options = {
           url: url,
           method: 'GET',
-          headers: {
-            cookie: cookie
-          }
         }
         // Some redirect
         request(options, (err, response, body) => {
           var $ = cheerio.load(body)
           let StateId = $('input[name="StateId"]').first().attr('value')
-          let cookie = response.request.headers.cookie
+          let cookies = response.request.headers.cookie
           let options = {
             url: 'https://login.ktu.lt/simplesaml/module.php/consent/getconsent.php?StateId=' + encodeURIComponent(StateId)+'&',
             method: 'GET',
             headers: {
-              cookie: cookie
+              cookie: cookies
             },
             qs: {
               StateId: StateId,
@@ -83,7 +81,12 @@ function getSTUDCOOKIE(username, password) {
             }
             request(options, (err, response, body) => {
               request.get('https://uais.cr.ktu.lt/ktuis/studautologin', (err, res, body) => {
-                resolve(res.request.headers.cookie.split(';')[1].trim().split('=')[1])
+                let cookies = cookie.parse(res.request.headers.cookie)
+                console.log('with options resolved, studautologin gives cookies:')
+                for(var key in cookies){
+                    console.log('\t',key, cookies[key])
+                }
+                resolve(res.request.headers.cookie)
               })
             })
           })
